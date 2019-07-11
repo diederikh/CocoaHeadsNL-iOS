@@ -3,32 +3,28 @@
 //  CocoaHeadsNL
 //
 //  Created by Matthijs Hollemans on 25-05-15.
-//  Copyright (c) 2015 Stichting CocoaheadsNL. All rights reserved.
+//  Copyright (c) 2016 Stichting CocoaheadsNL. All rights reserved.
 //
 
 import Foundation
+import UIKit
 
-class MeetupCell: PFTableViewCell {
+private let dateFormatter = DateFormatter()
+
+class MeetupCell: UITableViewCell {
     static let Identifier = "meetupCell"
-
-    static let dateFormatter: NSDateFormatter = {
-        let dateFormatter = NSDateFormatter()
-        dateFormatter.dateStyle = .MediumStyle
-        dateFormatter.timeStyle = .ShortStyle
-        dateFormatter.dateFormat = "HH:mm a"
-        return dateFormatter
-    }()
 
     @IBOutlet weak var titleLabel: UILabel!
     @IBOutlet weak var timeLabel: UILabel!
-    @IBOutlet weak var descriptionLabel: UILabel!
-    @IBOutlet weak var logoImageView: PFImageView!
+    @IBOutlet weak var logoImageView: UIImageView!
     @IBOutlet weak var dateContainer: UIView!
-    @IBOutlet weak var calendarView: UIView!
+    @IBOutlet weak var monthBackgroundView: UIView!
+    @IBOutlet weak var dayBackgroundView: UIView!
     @IBOutlet weak var dayLabel: UILabel!
     @IBOutlet weak var monthLabel: UILabel!
+    @IBOutlet weak var rsvpLabel: UILabel!
 
-    required init(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
     }
 
@@ -43,61 +39,66 @@ class MeetupCell: PFTableViewCell {
         timeLabel.text = ""
         dayLabel.text = ""
         monthLabel.text = ""
-        descriptionLabel.text = ""
-
-        logoImageView.file = nil
-
-        if let image = UIImage(named: "MeetupPlaceholder") {
-            logoImageView.image = image
-        }
     }
 
-    func configureCellForMeetup(meetup: Meetup, row: Int) {
+    func configureCellForMeetup(_ meetup: Meetup) {
         titleLabel.text = meetup.name
 
-        if let description = meetup.meetup_description {
-        
-            let str = description.stringByReplacingOccurrencesOfString("<[^>]+>", withString: "", options: .RegularExpressionSearch, range: nil)
-            
-            descriptionLabel.text = str
-        }
-
         if let date = meetup.time {
-            let timeText = MeetupCell.dateFormatter.stringFromDate(date)
-            timeLabel.text = String(format: "%@ - %@", meetup.location ?? "Location unknown", timeText)
+            dateFormatter.dateStyle = .none
+            dateFormatter.timeStyle = .short
+            let timeText = dateFormatter.string(from: date as Date)
+            timeLabel.text = String(format: "%@ %@", meetup.location ?? NSLocalizedString("Location unknown"), timeText)
 
-            let components = NSCalendar.currentCalendar().components(.CalendarUnitMonth | .CalendarUnitDay, fromDate: date)
-            dayLabel.text = String(format: "%d", components.day)
+            dateFormatter.dateFormat = "dd"
+            dayLabel.text = dateFormatter.string(from: date as Date)
 
-            let months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEPT", "OCT", "NOV", "DEC"]
-            monthLabel.text = months[components.month - 1]
+            dateFormatter.dateFormat = "MMM"
+            monthLabel.text = dateFormatter.string(from: date as Date).uppercased()
+            dateFormatter.dateFormat = "MMMM"
+            monthLabel.accessibilityLabel = dateFormatter.string(from: date as Date)
 
-            if date.timeIntervalSinceNow > 0 {
-                dayLabel.textColor = UIColor.blackColor()
-                calendarView.backgroundColor = UIColorWithRGB(232, 88, 80)
+            if meetup.isToday || meetup.isUpcoming {
+                dayLabel.textColor = UIColor.black
+                monthBackgroundView.backgroundColor = meetup.isToday ? UIColorWithRGB(127, green: 214, blue: 33) : UIColorWithRGB(232, green: 88, blue: 80)
+
+                if meetup.yesRsvpCount > 0 {
+
+                    rsvpLabel.text = "\(meetup.yesRsvpCount) " + NSLocalizedString("CocoaHeads going")
+
+                    if meetup.rsvpLimit > 0 {
+                        let text = rsvpLabel.text! + "\n\(meetup.rsvpLimit - meetup.yesRsvpCount) "
+                        rsvpLabel.text = text + NSLocalizedString("seats available")
+                    }
+                } else {
+                    rsvpLabel.text = ""
+                }
             } else {
                 dayLabel.textColor = UIColor(white: 0, alpha: 0.65)
-                calendarView.backgroundColor = UIColorWithRGB(169, 166, 166)
+                monthBackgroundView.backgroundColor = UIColorWithRGB(169, green: 166, blue: 166)
+
+                rsvpLabel.text = "\(meetup.yesRsvpCount) \(NSLocalizedString("CocoaHeads had a blast"))"
             }
         }
 
-        if let logoFile = meetup.smallLogo {
-            logoImageView.file = logoFile
-            logoImageView.loadInBackground({[weak self] (image, error) -> Void in
-                if error == nil {
-                    self?.setNeedsLayout()
-                }
-            })
+        self.logoImageView.image =  meetup.smallLogoImage
+    }
+
+    override func setHighlighted(_ highlighted: Bool, animated: Bool) {
+        super.setHighlighted(highlighted, animated: animated)
+
+        if highlighted {
+            monthBackgroundView.backgroundColor = .gray
+            dayBackgroundView.backgroundColor = UIColor(white: 1, alpha: 0.4)
         }
     }
 
-    override func setHighlighted(highlighted: Bool, animated: Bool) {
-        super.setHighlighted(highlighted, animated: animated)
-        monthLabel.textColor = highlighted ? UIColor.blackColor() : UIColor.whiteColor()
-    }
-
-    override func setSelected(selected: Bool, animated: Bool) {
+    override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)
-        monthLabel.textColor = selected ? UIColor.blackColor() : UIColor.whiteColor()
+
+        if selected {
+            monthBackgroundView.backgroundColor = .gray
+            dayBackgroundView.backgroundColor = UIColor(white: 1, alpha: 0.4)
+        }
     }
 }

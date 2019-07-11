@@ -1,26 +1,26 @@
 import UIKit
 
 class JobDataSource: DetailDataSource {
-    private var job: Job {
-        return object as! Job
+    var job: Job {
+        return object as! Job // swiftlint:disable:this force_cast
     }
 
     override var title: String? {
         return job.title
     }
 
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return 3
     }
 
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        switch indexPath.row {
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        switch (indexPath as NSIndexPath).row {
         case 0:
-            return logoCellWithFile(job.logo, forTableView: tableView)
+            return logoCellWithFile(job.logoImage, forTableView: tableView)
         case 1:
             return titleCellWithText(job.title, forTableView: tableView)
         case 2:
-            return webViewCellWithHTML(job.content, forTableView: tableView)
+            return dataCellWithHTML(job.content, forTableView: tableView)
         default:
             fatalError("This should not happen.")
         }

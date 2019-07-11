@@ -3,7 +3,7 @@
 //  CocoaHeadsNL
 //
 //  Created by Bart Hoffman on 14/03/15.
-//  Copyright (c) 2015 Stichting CocoaheadsNL. All rights reserved.
+//  Copyright (c) 2016 Stichting CocoaheadsNL. All rights reserved.
 //
 
 import Foundation
@@ -12,21 +12,57 @@ import UIKit
 class SplitViewController: UISplitViewController, UISplitViewControllerDelegate {
     override func viewDidLoad() {
         self.delegate = self
-        self.preferredDisplayMode = UISplitViewControllerDisplayMode.AllVisible
+        self.preferredDisplayMode = UISplitViewController.DisplayMode.allVisible
+
+        NotificationCenter.default.addObserver(self, selector: #selector(SplitViewController.searchNotification(_:)), name: NSNotification.Name(rawValue: searchNotificationName), object: nil)
+
+        //Inspect paste board for userInfo
+        if let pasteBoard = UIPasteboard(name: UIPasteboard.Name(rawValue: searchPasteboardName), create: false) {
+            let uniqueIdentifier = pasteBoard.string
+            if let components = uniqueIdentifier?.components(separatedBy: ":") {
+                if !components.isEmpty {
+                    let type = components[0]
+                    displayTabForType(type)
+                }
+            }
+        }
+    }
+    @objc func searchNotification(_ notification: Notification) {
+        guard let userInfo = (notification as NSNotification).userInfo as? Dictionary<String, String> else {
+            return
+        }
+
+        if let type = userInfo["type"] {
+            displayTabForType(type)
+        }
+    }
+
+    func displayTabForType(_ type: String) {
+        guard let tabBarController = self.viewControllers[0] as? UITabBarController else {
+            return
+        }
+
+        if type == "meetup" {
+            tabBarController.selectedIndex = 0
+        } else if type == "job" {
+            tabBarController.selectedIndex = 1
+        }
     }
 
     // MARK: - UISplitViewControllerDelegate
 
-    func splitViewController(splitViewController: UISplitViewController, collapseSecondaryViewController secondaryViewController: UIViewController!, ontoPrimaryViewController primaryViewController: UIViewController!) -> Bool {
-        if let primaryTab = primaryViewController as? UITabBarController, primaryNav = primaryTab.selectedViewController as? UINavigationController {
+    func splitViewController(_ splitViewController: UISplitViewController, collapseSecondary secondaryViewController: UIViewController, onto primaryViewController: UIViewController) -> Bool {
+        if let primaryTab = primaryViewController as? UITabBarController, let _ = primaryTab.selectedViewController as? UINavigationController {
             return true
         }
         return false
     }
 
-    func splitViewController(splitViewController: UISplitViewController, separateSecondaryViewControllerFromPrimaryViewController primaryViewController: UIViewController!) -> UIViewController? {
-        if let tabBarController = primaryViewController as? UITabBarController, navigationController = tabBarController.selectedViewController as? UINavigationController where navigationController.childViewControllers.count > 1 {
-            let poppedControllers = navigationController.popToRootViewControllerAnimated(false)
+    func splitViewController(_ splitViewController: UISplitViewController, separateSecondaryFrom primaryViewController: UIViewController) -> UIViewController? {
+        if let tabBarController = primaryViewController as? UITabBarController, let navigationController = tabBarController.selectedViewController as? UINavigationController, navigationController.children.count > 1 {
+            guard let poppedControllers = navigationController.popToRootViewController(animated: false) else {
+                return nil
+            }
             let childNavigationController = UINavigationController()
             childNavigationController.viewControllers = poppedControllers
             return childNavigationController
@@ -34,12 +70,14 @@ class SplitViewController: UISplitViewController, UISplitViewControllerDelegate 
         return nil
     }
 
-    func splitViewController(splitViewController: UISplitViewController, showDetailViewController vc: UIViewController, sender: AnyObject?) -> Bool {
-        if splitViewController.collapsed, let master = splitViewController.viewControllers[0] as? UITabBarController, masterNavigation = master.selectedViewController as? UINavigationController {
-            masterNavigation.showViewController(vc, sender: self)
+    func splitViewController(_ splitViewController: UISplitViewController,
+                             showDetail detailVc: UIViewController,
+                             sender: Any?) -> Bool {
+        if splitViewController.isCollapsed, let master = splitViewController.viewControllers[0] as? UITabBarController, let masterNavigation = master.selectedViewController as? UINavigationController {
+            masterNavigation.show(detailVc, sender: self)
             return true
         } else if let masterNavigation = splitViewController.viewControllers[1] as? UINavigationController {
-            masterNavigation.setViewControllers([vc], animated: true)
+            masterNavigation.setViewControllers([detailVc], animated: true)
             return true
         }
         return false
